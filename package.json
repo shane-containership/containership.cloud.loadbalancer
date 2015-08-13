@@ -1,0 +1,30 @@
+{
+  "name": "containership.cloud.loadbalancer",
+  "version": "0.0.0",
+  "description": "ContainerShip Cloud Loadbalancer",
+  "main": "loadbalancer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/containership/containership.cloud.loadbalancer.git"
+  },
+  "keywords": [
+    "containership",
+    "cloud",
+    "loadbalancer"
+  ],
+  "author": "ContainerShip Developers <developers@containership.io>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/containership/containership.cloud.loadbalancer/issues"
+  },
+  "homepage": "https://github.com/containership/containership.cloud.loadbalancer",
+  "dependencies": {
+    "async": "^1.4.2",
+    "lodash": "^3.10.1",
+    "native-dns": "^0.7.0",
+    "request": "^2.60.0"
+  }
+}
