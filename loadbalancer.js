@@ -49,7 +49,7 @@ var haproxy = {
                         content.push(["\tbind *", listen_port].join(":"));
                         _.each(loadbalancers, function(loadbalancer){
                             _.each(loadbalancer.domains, function(domain){
-                                content.push(["\tacl", ["host", loadbalancer.application].join("_"), "hdr(host)", "-i", domain].join(" "));
+                                content.push(["\tacl", ["host", loadbalancer.application].join("_"), "hdr_beg(host)", "-i", domain].join(" "));
                             });
                         });
                         content.push("");
