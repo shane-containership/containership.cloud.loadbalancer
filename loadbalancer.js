@@ -32,7 +32,11 @@ var haproxy = {
             if(!_.isUndefined(response.loadbalancers) && !_.isUndefined(response.applications)){
                 var lbs_by_type = _.groupBy(response.loadbalancers, "type");
                 if(_.has(lbs_by_type, "tcp")){
-                    _.each(lbs_by_type.tcp, function(loadbalancer){
+                    var cluster_lbs = _.filter(lbs_by_type.tcp, function(lb){
+                        return lb.cluster_id == process.env.CS_CLUSTER_ID;
+                    });
+
+                    _.each(cluster_lbs, function(loadbalancer){
                         content.push("");
                         content.push(["listen ", loadbalancer.application, " :", loadbalancer.listen_port].join(""));
                         content.push("\tmode tcp");
@@ -41,7 +45,12 @@ var haproxy = {
                 }
 
                 if(_.has(lbs_by_type, "http")){
-                    var http_by_port = _.groupBy(lbs_by_type.http, "listen_port");
+                    var cluster_lbs = _.filter(lbs_by_type.http, function(lb){
+                        return lb.cluster_id == process.env.CS_CLUSTER_ID;
+                    });
+
+                    var http_by_port = _.groupBy(cluster_lbs, "listen_port");
+
                     _.each(http_by_port, function(loadbalancers, listen_port){
                         content.push("");
                         content.push(["frontend http", listen_port].join("_"));
