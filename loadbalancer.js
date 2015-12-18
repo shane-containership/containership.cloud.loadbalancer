@@ -56,10 +56,16 @@ var haproxy = {
                         content.push(["frontend http", listen_port].join("_"));
                         content.push("\tmode http");
                         content.push(["\tbind *", listen_port].join(":"));
+                        content.push("\tacl is_proxy_http hdr(X-Forwarded-Proto) http");
+                        content.push("\tacl no_proxy hdr_cnt(X-Forwarded-Proto) 0");
                         _.each(loadbalancers, function(loadbalancer){
                             _.each(loadbalancer.domains, function(domain){
                                 content.push(["\tacl", ["host", loadbalancer.application].join("_"), "hdr_beg(host)", "-i", domain].join(" "));
                             });
+                            if(loadbalancer.force_https){
+                                content.push(["\tredirect scheme https code 301 if is_proxy_http", ["host", loadbalancer.application].join("_")].join(" "));
+                                content.push(["\tredirect scheme https code 301 if no_http", ["host", loadbalancer.application].join("_")].join(" "));
+                            }
                         });
                         content.push("");
                         _.each(loadbalancers, function(loadbalancer){
