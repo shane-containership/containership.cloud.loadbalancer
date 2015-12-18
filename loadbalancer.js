@@ -64,7 +64,7 @@ var haproxy = {
                             });
                             if(loadbalancer.force_https){
                                 content.push(["\tredirect scheme https code 301 if is_proxy_http", ["host", loadbalancer.application].join("_")].join(" "));
-                                content.push(["\tredirect scheme https code 301 if no_http", ["host", loadbalancer.application].join("_")].join(" "));
+                                content.push(["\tredirect scheme https code 301 if no_proxy", ["host", loadbalancer.application].join("_")].join(" "));
                             }
                         });
                         content.push("");
