@@ -13,7 +13,7 @@ RUN curl --silent --location https://deb.nodesource.com/setup_0.12 | bash -
 RUN apt-get install --yes nodejs
 RUN curl https://www.npmjs.com/install.sh | sh
 RUN npm install n -g
-RUN n 0.10.38
+RUN n 5.6.0
 ADD . /app
 RUN npm install
 CMD node loadbalancer
