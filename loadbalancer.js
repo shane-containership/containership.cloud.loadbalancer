@@ -1,99 +1,165 @@
+var os = require("os");
 var fs = require("fs");
 var child_process = require("child_process");
 var _ = require("lodash");
 var async = require("async");
 var request = require("request");
-var dns = require("native-dns");
+var crypto = require("crypto");
+var MyriadKVClient = require("myriad-kv-client");
+var template = require([__dirname, "lib", "template"].join("/"));
+
+var config = {};
+
+try{
+    var cs_opts = JSON.parse(process.env.CS_PROC_OPTS);
+}
+catch(err){
+    var cs_opts = {};
+}
+
+var interfaces = os.networkInterfaces();
+var myriad_host;
+
+if(_.has(cs_opts, "legiond") && _.has(cs_opts.legiond, "network") && _.has(cs_opts.legiond.network, "interface")){
+    var iface = _.find(interfaces[cs_opts.legiond.network.interface], function(iface){
+        return iface.family == "IPv4";
+    });
+
+    if(!_.isUndefined(iface) && _.has(iface, "address"))
+        myriad_host = iface.address;
+}
+
+config.myriad = _.defaults({
+    host: myriad_host,
+    port: process.env.MYRIAD_PORT
+}, {
+    host: "127.0.0.1",
+    port: 2666
+});
+
+config.haproxy = _.defaults({
+    max_connections: process.env.HAPROXY_GLOBAL_MAX_CONN,
+    connect_timeout: process.env.HAPROXY_DEFAULT_CONNECT_TIMEOUT,
+    client_timeout: process.env.HAPROXY_DEFAULT_CLIENT_TIMEOUT,
+    server_timeout: process.env.HAPROXY_DEFAULT_SERVER_TIMEOUT,
+    write_interval: process.env.HAPROXY_WRITE_INTERVAL
+}, {
+    max_connections: 16384,
+    connect_timeout: 30000,
+    client_timeout: 30000,
+    server_timeout: 30000,
+    write_interval: 15000
+});
+
+config.containership = _.defaults({
+    api_key: process.env.CONTAINERSHIP_CLOUD_API_KEY,
+    api_version: process.env.CONTAINERSHIP_CLOUD_API_VERSION,
+    organization: process.env.CONTAINERSHIP_CLOUD_ORGANIZATION
+}, {
+    api_version: "v1"
+});
+
+var myriad_kv_client = new MyriadKVClient({
+    host: config.myriad.host,
+    port: config.myriad.port
+});
 
 var haproxy = {
 
-    config_location: "haproxy.conf",
+    config_file: "haproxy.conf",
 
-    write_config: function(){
+    checksum: null,
+
+    write_config: function(fn){
         var self = this;
 
-        var content = [
-            "global",
-                "\tmaxconn 4096",
-            "defaults",
-                "\tlog global",
-                "\tmode tcp",
-                "\toption dontlognull",
-                "\tretries 3",
-                "\ttimeout connect 30000",
-                "\ttimeout client 30000",
-                "\ttimeout server 30000"
-        ]
+        this.get_content(function(err, content){
+            if(err)
+                return fn(err);
 
-        async.parallel({
-            applications: containership.get_applications,
-            loadbalancers: containership.get_loadbalancers
-        }, function(err, response){
-            if(!_.isUndefined(response.loadbalancers) && !_.isUndefined(response.applications)){
-                var lbs_by_type = _.groupBy(response.loadbalancers, "type");
-                if(_.has(lbs_by_type, "tcp")){
-                    var cluster_lbs = _.filter(lbs_by_type.tcp, function(lb){
-                        return lb.cluster_id == process.env.CS_CLUSTER_ID;
-                    });
+            var checksum = crypto.createHash("md5").update(content).digest("hex");
 
-                    _.each(cluster_lbs, function(loadbalancer){
-                        content.push("");
-                        content.push(["listen ", loadbalancer.application, " :", loadbalancer.listen_port].join(""));
-                        content.push("\tmode tcp");
-                        content.push(["\tserver local 127.0.0.1", response.applications[loadbalancer.application].discovery_port].join(":"));
-                    });
-                }
-
-                if(_.has(lbs_by_type, "http")){
-                    var cluster_lbs = _.filter(lbs_by_type.http, function(lb){
-                        return lb.cluster_id == process.env.CS_CLUSTER_ID;
-                    });
-
-                    var http_by_port = _.groupBy(cluster_lbs, "listen_port");
-
-                    _.each(http_by_port, function(loadbalancers, listen_port){
-                        content.push("");
-                        content.push(["frontend http", listen_port].join("_"));
-                        content.push("\tmode http");
-                        content.push(["\tbind *", listen_port].join(":"));
-                        content.push("\tacl is_proxy_http hdr(X-Forwarded-Proto) http");
-                        content.push("\tacl no_proxy hdr_cnt(X-Forwarded-Proto) 0");
-                        _.each(loadbalancers, function(loadbalancer){
-                            _.each(loadbalancer.domains, function(domain){
-                                content.push(["\tacl", ["host", loadbalancer.application].join("_"), "hdr_beg(host)", "-i", domain].join(" "));
-                            });
-                            if(loadbalancer.force_https){
-                                content.push(["\tredirect scheme https code 301 if is_proxy_http", ["host", loadbalancer.application].join("_")].join(" "));
-                                content.push(["\tredirect scheme https code 301 if no_proxy", ["host", loadbalancer.application].join("_")].join(" "));
-                            }
-                        });
-                        content.push("");
-                        _.each(loadbalancers, function(loadbalancer){
-                            content.push(["\tuse_backend", ["application", loadbalancer.application].join("_"), "if", ["host", loadbalancer.application].join("_")].join(" "));
-                        });
-                    });
-                }
-
-                _.each(response.applications, function(application, application_name){
-                    content.push("");
-                    content.push(["backend", ["application", application_name].join("_")].join(" "));
-                    content.push("\tmode http");
-                    content.push(["\tserver local 127.0.0.1", application.discovery_port].join(":"));
-                });
-
-                content = _.flatten(content).join("\n");
-                fs.writeFile(haproxy.config_location, content, function(err){
+            if(checksum != self.checksum){
+                fs.writeFile(haproxy.config_file, content, function(err){
                     if(err)
-                        process.stderr.write(err.message);
+                        return fn(err);
+
+                    self.checksum = checksum;
 
                     if(_.isUndefined(self.process))
                         self.start();
                     else
                         self.reload();
+
+                    return fn();
                 });
             }
-            else
-                process.stderr.write("Error fetching ContainerShip applications / hosts");
+        });
+    },
+
+    get_content: function(fn){
+        var content = [
+            template.global(config.haproxy),
+            template.defaults(config.haproxy)
+        ]
+
+        if(process.env.METRICS_ENABLED)
+            content.push(template.stats);
+
+        async.parallel({
+            applications: myriad.get_applications,
+            loadbalancers: containership.get_loadbalancers
+        }, function(err, response){
+            if(err)
+                return fn(err);
+
+            var loadbalancers_by_type = _.groupBy(response.loadbalancers, "type");
+
+            if(_.has(loadbalancers_by_type, "tcp")){
+                var cluster_loadbalancers = _.filter(loadbalancers_by_type.tcp, function(loadbalancer){
+                    return loadbalancer.cluster_id == process.env.CS_CLUSTER_ID;
+                });
+
+                _.each(cluster_loadbalancers, function(loadbalancer){
+                    if(_.has(response.applications, loadbalancer.application)){
+                        var listen_line = template.tcp_listen({
+                            id: loadbalancer.application,
+                            port: loadbalancer.listen_port,
+                            discovery_port: response.applications[loadbalancer.application].discovery_port
+                        });
+
+                        content.push(listen_line);
+                    }
+                });
+            }
+
+            if(_.has(loadbalancers_by_type, "http")){
+                var cluster_loadbalancers = _.filter(loadbalancers_by_type.http, function(loadbalancer){
+                    return loadbalancer.cluster_id == process.env.CS_CLUSTER_ID;
+                });
+
+                var http_by_port = _.groupBy(cluster_loadbalancers, "listen_port");
+
+                _.each(http_by_port, function(loadbalancers, listen_port){
+                    var http_frontend = template.http_frontend({
+                        port: listen_port,
+                        loadbalancers: loadbalancers
+                    });
+
+                    content.push(http_frontend);
+                });
+            }
+
+            _.each(response.applications, function(application, application_name){
+                var backend = template.backend({
+                    id: application_name,
+                    port: application.discovery_port
+                });
+
+                content.push(backend);
+            });
+
+            return fn(null, _.flatten(content).join("\n"));
         });
     },
 
@@ -108,40 +174,55 @@ var haproxy = {
 
 }
 
-var containership = {
-
-    api_url: ["leaders", process.env.CS_CLUSTER_ID, "containership"].join("."),
+var myriad = {
 
     get_applications: function(fn){
-        containership.resolve_url(containership.api_url, function(url){
-            var options = {
-                url: ["http://", url, ":8080/v1/applications"].join(""),
-                method: "GET",
-                json: true,
-                timeout: 5000
-            }
+        myriad_kv_client.keys(["containership", "application", "*"].join("::"), function(err, keys){
+            if(err)
+                return fn(err);
 
-            return request(options, function(err, response){
+            var applications = {};
+
+            async.each(keys, function(key, fn){
+                myriad_kv_client.get(key, function(err, application){
+                    if(err)
+                        return fn(err);
+
+                    try{
+                        application = JSON.parse(application);
+                        applications[application.id] = application;
+                        return fn();
+                    }
+                    catch(err){
+                        return fn(err);
+                    }
+                });
+            }, function(err){
                 if(err)
                     return fn(err);
-                else
-                    return fn(null, response.body);
+
+                return fn(null, applications);
             });
         });
-    },
+    }
+
+}
+
+var containership = {
 
     get_loadbalancers: function(fn){
         var options = {
-            url: ["https://api.containership.io", "v1", process.env.CONTAINERSHIP_CLOUD_ORGANIZATION, "loadbalancers"].join("/"),
+            url: ["https://api.containership.io", config.containership.api_version, config.containership.organization, "loadbalancers"].join("/"),
             method: "GET",
             json: true,
             headers: {
-                "X-ContainerShip-Cloud-Organization": process.env.CONTAINERSHIP_CLOUD_ORGANIZATION,
-                "X-ContainerShip-Cloud-API-Key": process.env.CONTAINERSHIP_CLOUD_API_KEY
-            }
+                "X-ContainerShip-Cloud-Organization": config.containership.organization,
+                "X-ContainerShip-Cloud-API-Key": config.containership.api_key
+            },
+            timeout: 5000
         }
 
-        return request(options, function(err, response){
+        request(options, function(err, response){
             if(err)
                 return fn(err);
             else
@@ -149,36 +230,16 @@ var containership = {
         });
     },
 
-    resolve_url: function(url, fn){
-        var question = dns.Question({
-          name: url,
-          type: 'A',
-        });
-
-        var req = dns.Request({
-            question: question,
-            server: { address: '127.0.0.1', port: 53, type: 'udp' },
-            timeout: 2000
-        });
-
-        req.on("timeout", function(){
-            return fn();
-        });
-
-        req.on("message", function (err, answer) {
-            var address;
-            answer.answer.forEach(function(a){
-                address = a.address;
-            });
-
-            return fn(address);
-        });
-
-        req.send();
-    }
 }
 
-haproxy.write_config();
-setInterval(function(){
-    haproxy.write_config();
-}, 15000);
+haproxy.write_config(function(err){
+    if(err)
+        process.stderr.write(err.message);
+
+    setInterval(function(){
+        haproxy.write_config(function(err){
+            if(err)
+                process.stderr.write(err.message);
+        });
+    }, config.haproxy.write_interval);
+});
