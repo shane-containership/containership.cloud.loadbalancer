@@ -51,6 +51,15 @@ config.haproxy = _.defaults({
     write_interval: 15000
 });
 
+if(process.env.HAPROXY_DEFAULT_OPTIONS)
+    config.haproxy.default_options = process.env.HAPROXY_DEFAULT_OPTIONS.replace(/ /g, "").split(",");
+else{
+    config.haproxy.default_options = [
+        "dontlognull",
+        "forwardfor"
+    ]
+}
+
 config.containership = _.defaults({
     api_key: process.env.CONTAINERSHIP_CLOUD_API_KEY,
     api_version: process.env.CONTAINERSHIP_CLOUD_API_VERSION,
