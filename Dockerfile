@@ -1,19 +1,17 @@
-####
-# Dockerfile for ContainerShip Cloud Loadbalancer
-####
+FROM nginx:1.11.1
 
-FROM haproxy:1.5.14
+MAINTAINER Containership Developers <developers@containership.io>
 
-MAINTAINER ContainerShip Developers <developers@containership.io>
+RUN echo "deb http://ftp.us.debian.org/debian wheezy-backports main" >> /etc/apt/sources.list
+RUN apt-get update && apt-get install curl nodejs-legacy -y
+RUN curl -L --insecure https://www.npmjs.org/install.sh | bash
+RUN /usr/bin/npm install -g n && n 6.3.0
 
+RUN rm -rf /etc/nginx/*
+RUN mkdir /etc/nginx/tcp.d
+RUN mkdir /etc/nginx/http.d
 RUN mkdir /app
-WORKDIR /app
-RUN apt-get update && apt-get install -y curl git
-RUN curl --silent --location https://deb.nodesource.com/setup_0.12 | bash -
-RUN apt-get install --yes nodejs
-RUN curl https://www.npmjs.com/install.sh | sh
-RUN npm install n -g
-RUN n 5.6.0
 ADD . /app
+WORKDIR /app
 RUN npm install
-CMD node loadbalancer
+CMD node index.js
