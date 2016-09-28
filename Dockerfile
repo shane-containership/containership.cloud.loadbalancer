@@ -10,6 +10,8 @@ RUN /usr/bin/npm install -g n && n 6.3.0
 RUN rm -rf /etc/nginx/*
 RUN mkdir /etc/nginx/tcp.d
 RUN mkdir /etc/nginx/http.d
+RUN mkdir /etc/nginx/https.d
+RUN mkdir /etc/nginx/ssl
 RUN mkdir /app
 ADD . /app
 WORKDIR /app
