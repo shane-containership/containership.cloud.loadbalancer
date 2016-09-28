@@ -21,7 +21,7 @@ module.exports = {
 server {
     listen ${options.loadbalancer.listen_port};
     server_name ${options.loadbalancer.domains.join(' ')};
-    ${options.loadbalancer.force_https ? 'return 301 https://$host:$server_port$request_uri;' : ''}
+    ${options.loadbalancer.force_https ? 'return 301 https://$host$request_uri;' : ''}
 
     location / {
         proxy_set_header        Host                $host;
