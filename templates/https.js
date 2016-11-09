@@ -35,6 +35,7 @@ server {
         proxy_set_header        X-Real-IP           $remote_addr;
         proxy_set_header        X-Forwarded-For     $proxy_add_x_forwarded_for;
         proxy_set_header        X-Forwarded-Proto   $scheme;
+        proxy_http_version      1.1;
         client_max_body_size    ${options.client_max_body_size}m;
         client_body_buffer_size ${options.client_body_buffer_size}k;
         proxy_connect_timeout   ${options.proxy_connect_timeout}s;
