@@ -7,6 +7,7 @@ module.exports = {
     defaults: {
         client_body_buffer_size: 128,
         client_max_body_size: 10,
+        enable_http2: true,
         proxy_buffers_number: 32,
         proxy_buffers_size: 4,
         proxy_connect_timeout: 60,
@@ -21,7 +22,7 @@ module.exports = {
 
         return _.trim(`
 server {
-    listen ${options.loadbalancer.listen_port};
+    listen ${options.loadbalancer.listen_port}${options.enable_http2 ? ' http2' : ''};
     server_name ${options.loadbalancer.domains.join(' ')};
 
     ssl on;
