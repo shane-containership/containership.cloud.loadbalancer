@@ -13,6 +13,7 @@ RUN mkdir /etc/nginx/http.d
 RUN mkdir /etc/nginx/https.d
 RUN mkdir /etc/nginx/ssl
 RUN mkdir /app
+RUN mkdir /app/basic_auth
 ADD . /app
 WORKDIR /app
 RUN npm install

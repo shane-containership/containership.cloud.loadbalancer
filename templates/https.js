@@ -1,6 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
+const fs = require('fs');
 
 module.exports = {
 
@@ -20,10 +21,27 @@ module.exports = {
     render: function(options) {
         _.defaults(options, this.defaults);
 
+        let basic_auth = false;
+        let basic_auth_file = null;
+
+        if (options.loadbalancer.basic_auth_list && options.loadbalancer.basic_auth_list.length) {
+            basic_auth = true;
+            basic_auth_file = `/app/basic_auth/${options.application.id}`
+
+            if (fs.existsSync(basic_auth_file)) {
+                fs.unlinkSync(basic_auth_file);
+            }
+
+            fs.writeFileSync(basic_auth_file, _.map(options.loadbalancer.basic_auth_list, auth => `${auth}\n`));
+        }
+
         return _.trim(`
 server {
     listen ${options.loadbalancer.listen_port}${options.enable_http2 ? ' http2' : ''};
     server_name ${options.loadbalancer.domains.join(' ')};
+
+    ${basic_auth ? 'auth_basic  "Basic Auth LB";' : ''}
+    ${basic_auth ? `auth_basic_user_file ${basic_auth_file};` : ''}
 
     ssl on;
     ssl_ciphers '${options.ssl_ciphers}';
