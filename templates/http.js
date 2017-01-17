@@ -29,7 +29,7 @@ module.exports = {
                 fs.unlinkSync(basic_auth_file);
             }
 
-            fs.writeFileSync(basic_auth_file, _.map(options.loadbalancer.basic_auth, (auth, name) => `${name}:${auth}\n`));
+            fs.writeFileSync(basic_auth_file, _.map(options.loadbalancer.basic_auth, (auth, name) => `${name}:${auth}`).join('\n'));
         }
 
         return _.trim(`
