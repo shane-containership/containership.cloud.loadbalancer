@@ -26,7 +26,7 @@ module.exports = {
 
         if (options.loadbalancer.basic_auth_list && options.loadbalancer.basic_auth_list.length) {
             basic_auth = true;
-            basic_auth_file = `/app/basic_auth/${options.application.id}`
+            basic_auth_file = `/app/basic_auth/${options.application.id}`;
 
             if (fs.existsSync(basic_auth_file)) {
                 fs.unlinkSync(basic_auth_file);
