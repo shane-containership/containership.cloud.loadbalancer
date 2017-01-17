@@ -18,18 +18,18 @@ module.exports = {
     render: function(options) {
         _.defaults(options, this.defaults);
 
-        let basic_auth = false;
+        let has_basic_auth = false;
         let basic_auth_file = null;
 
-        if (options.loadbalancer.basic_auth_list && options.loadbalancer.basic_auth_list.length) {
-            basic_auth = true;
+        if (options.loadbalancer.basic_auth && _.keys(options.loadbalancer.basic_auth).length) {
+            has_basic_auth = true;
             basic_auth_file = `/app/basic_auth/${options.application.id}`;
 
             if (fs.existsSync(basic_auth_file)) {
                 fs.unlinkSync(basic_auth_file);
             }
 
-            fs.writeFileSync(basic_auth_file, _.map(options.loadbalancer.basic_auth_list, auth => `${auth}\n`));
+            fs.writeFileSync(basic_auth_file, _.map(options.loadbalancer.basic_auth, (auth, name) => `${name}:${auth}\n`));
         }
 
         return _.trim(`
@@ -41,8 +41,8 @@ server {
         ${options.loadbalancer.force_https ? 'return 301 https://$host$request_uri;' : ''}
     }
 
-    ${basic_auth ? 'auth_basic  "Basic Auth LB";' : ''}
-    ${basic_auth ? `auth_basic_user_file ${basic_auth_file};` : ''}
+    ${has_basic_auth ? 'auth_basic  "Basic Auth LB";' : ''}
+    ${has_basic_auth ? `auth_basic_user_file ${basic_auth_file};` : ''}
 
     location / {
         proxy_set_header        Host                $host;
