@@ -27,18 +27,19 @@ start_nginx(() => {
         if(err || semver.lt(version, '1.8.0')) {
             setInterval(start_nginx, process.env.NGINX_RELOAD_INTERVAL || 15000);
         } else {
-            const subscriber = myriad.subscribe(process.env.CONTAINERSHIP_LOADBALANCERS_REGEX || constants.myriad.LOADBALANCERS_REGEX);
+            const loadbalancers_subscriber = myriad.subscribe(process.env.CONTAINERSHIP_LOADBALANCERS_REGEX || constants.myriad.LOADBALANCERS_REGEX);
+            const firewalls_subscriber = myriad.subscribe(process.env.CONTAINERSHIP_FIREWALLS_REGEX || constants.myriad.FIREWALLS_REGEX);
 
             let coalescing = false;
 
             // subscribe to changes in containership applications and containers namespaces
-            if(!subscriber) {
+            if(!loadbalancers_subscriber || !firewalls_subscriber) {
                 process.stderr.write('Myriad .subscribe() method does not exist!\n');
                 process.stderr.write('Are you running containership 1.8.0 or greater?\n');
                 process.exit(1);
             }
 
-            subscriber.on('message', (message) => {
+            const propagate_updates = function(message){
                 if(message.type === 'data') {
                     if(!coalescing) {
                         setTimeout(() => {
@@ -49,7 +50,10 @@ start_nginx(() => {
                         coalescing = true;
                     }
                 }
-            });
+            };
+
+            loadbalancers_subscriber.on('message', propagate_updates);
+            firewalls_subscriber.on('message', propagate_updates);
         }
     });
 });
