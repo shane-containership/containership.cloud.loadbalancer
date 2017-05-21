@@ -1,13 +1,10 @@
 # containership.cloud.loadbalancer
-ContainerShip Cloud Loadbalancer Docker Image
+Containership Cloud Loadbalancer Docker Image
 
 ## About
 
-### Build Status
-[![Build Status](https://drone.containership.io/api/badges/containership/containership.cloud.loadbalancer/status.svg)](https://drone.containership.io/containership/containership.cloud.loadbalancer)
-
 ### Description
-ContainerShip loadbalancer Docker image
+Containership loadbalancer Docker image
 
 ### Configuration
 `NGINX_CLIENT_BODY_BUFFER_SIZE` - buffer size for reading client request body (default: 128, unit: 'k')
@@ -23,8 +20,8 @@ ContainerShip loadbalancer Docker image
 `NGINX_PROXY_BUFFERS_SIZE` - size of buffer used for reading response from proxied server (default: 32, unit: 'k')
 `NGINX_PROXY_BUFFERS_NUMBER` - number of buffers used for reading response from proxied server (default: 4)
 
-###Author
-ContainerShip Developers - developers@containership.io
+### Author
+Containership Developers - developers@containership.io
 
-##Contributing
+## Contributing
 Pull requests and issues are encouraged!
