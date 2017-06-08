@@ -16,7 +16,7 @@ module.exports = {
         proxy_connect_timeout: 60,
         proxy_read_timeout: 60,
         proxy_send_timeout: 60,
-        ssl_ciphers: 'kEECDH+ECDSA+AES128 kEECDH+ECDSA+AES256 kEECDH+AES128 kEECDH+AES256 kEDH+AES128 kEDH+AES256 DES-CBC3-SHA +SHA !aNULL !eNULL !LOW !MD5 !EXP !DSS !PSK !SRP !kECDH !CAMELLIA !RC4 !SEED',
+        ssl_ciphers: 'kEECDH+ECDSA+AES128 kEECDH+ECDSA+AES256 kEECDH+AES128 kEECDH+AES256 kEDH+AES128 kEDH+AES256 DES-CBC3-SHA +SHA !aNULL !eNULL !LOW !MD5 !EXP !DSS !PSK !SRP !kECDH !CAMELLIA !RC4 !SEED !3DES',
         ssl_protocols: 'TLSv1 TLSv1.1 TLSv1.2'
     },
 
